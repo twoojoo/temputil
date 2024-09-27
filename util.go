@@ -7,10 +7,11 @@ import (
 	"go.temporal.io/sdk/workflow"
 )
 
-type activity[A, R any] func(ctx context.Context, arg A) (R, error)
-type activityNoResult[A any] func(ctx context.Context, arg A) error
+type Activity[A, R any] func(ctx context.Context, arg A) (R, error)
+type ActivityNoResult[A any] func(ctx context.Context, arg A) error
 
-func RunSyncActivity[A, R any](ctx workflow.Context, a activity[A, R], arg A, opts ...workflow.ActivityOptions) (result R, err error) {
+// RunSyncActivity executes an activity synchronously, blocking until the result is returned.
+func RunSyncActivity[A, R any](ctx workflow.Context, a Activity[A, R], arg A, opts ...workflow.ActivityOptions) (result R, err error) {
 	activityCtx := workflow.WithValue(ctx, "", "")
 
 	for _, opt := range opts {
@@ -21,7 +22,8 @@ func RunSyncActivity[A, R any](ctx workflow.Context, a activity[A, R], arg A, op
 	return result, err
 }
 
-func RunSyncActivityNoResult[A any](ctx workflow.Context, a activityNoResult[A], arg A, opts ...workflow.ActivityOptions) (err error) {
+// RunSyncActivityNoResult executes an activity synchronously without a result, blocking until the workflow execution ends.
+func RunSyncActivityNoResult[A any](ctx workflow.Context, a ActivityNoResult[A], arg A, opts ...workflow.ActivityOptions) (err error) {
 	activityCtx := workflow.WithValue(ctx, "", "")
 
 	for _, opt := range opts {
@@ -32,10 +34,11 @@ func RunSyncActivityNoResult[A any](ctx workflow.Context, a activityNoResult[A],
 	return err
 }
 
-type activityFuture[R any] func(ctx workflow.Context) (R, error)
-type activityFutureNoResult func(ctx workflow.Context) error
+type ActivityFuture[R any] func(ctx workflow.Context) (R, error)
+type ActivityFutureNoResult func(ctx workflow.Context) error
 
-func RunAsyncActivity[A, R any](ctx workflow.Context, a activity[A, R], arg A, opts ...workflow.ActivityOptions) activityFuture[R] {
+// RunAsyncActivity executes an activity asynchronously.
+func RunAsyncActivity[A, R any](ctx workflow.Context, a Activity[A, R], arg A, opts ...workflow.ActivityOptions) ActivityFuture[R] {
 	activityCtx := workflow.WithValue(ctx, "", "")
 
 	for _, opt := range opts {
@@ -50,7 +53,8 @@ func RunAsyncActivity[A, R any](ctx workflow.Context, a activity[A, R], arg A, o
 	}
 }
 
-func RunAsyncActivityNoResult[A any](ctx workflow.Context, a activityNoResult[A], arg A, opts ...workflow.ActivityOptions) activityFutureNoResult {
+// RunAsyncActivityNoResult executes an activity asynchronously without a result.
+func RunAsyncActivityNoResult[A any](ctx workflow.Context, a ActivityNoResult[A], arg A, opts ...workflow.ActivityOptions) ActivityFutureNoResult {
 	activityCtx := workflow.WithValue(ctx, "", "")
 
 	for _, opt := range opts {
@@ -65,13 +69,14 @@ func RunAsyncActivityNoResult[A any](ctx workflow.Context, a activityNoResult[A]
 	}
 }
 
-type wf[A, R any] func(ctx workflow.Context, arg A) (R, error)
-type wfNoResult[A any] func(ctx workflow.Context, arg A) error
+type Workflow[A, R any] func(ctx workflow.Context, arg A) (R, error)
+type WorkflowNoResult[A any] func(ctx workflow.Context, arg A) error
 
-type workflowFuture[R any] func(ctx context.Context) (R, error)
-type workflowFutureNoResult func(ctx context.Context) error
+type WorkflowFuture[R any] func(ctx context.Context) (R, error)
+type WorkflowFutureNoResult func(ctx context.Context) error
 
-func RunSyncWorkflow[A, R any](ctx context.Context, tc client.Client, opts client.StartWorkflowOptions, w wf[A, R], arg A) (result R, err error) {
+// RunSyncWorkflow executes a workflow synchronously, blocking until the workflow execution ends and the result is returned.
+func RunSyncWorkflow[A, R any](ctx context.Context, tc client.Client, opts client.StartWorkflowOptions, w Workflow[A, R], arg A) (result R, err error) {
 	run, err := tc.ExecuteWorkflow(ctx, opts, w, arg)
 	if err != nil {
 		return result, err
@@ -81,7 +86,8 @@ func RunSyncWorkflow[A, R any](ctx context.Context, tc client.Client, opts clien
 	return result, err
 }
 
-func RunSyncWorkflowNoResult[A any](ctx context.Context, tc client.Client, opts client.StartWorkflowOptions, w wfNoResult[A], arg A) (err error) {
+// RunSyncWorkflowNoResult executes a workflow synchronously without a result, blocking until the workflow execution ends.
+func RunSyncWorkflowNoResult[A any](ctx context.Context, tc client.Client, opts client.StartWorkflowOptions, w WorkflowNoResult[A], arg A) (err error) {
 	run, err := tc.ExecuteWorkflow(ctx, opts, w, arg)
 	if err != nil {
 		return err
@@ -91,7 +97,8 @@ func RunSyncWorkflowNoResult[A any](ctx context.Context, tc client.Client, opts 
 	return err
 }
 
-func RunAsyncWorkflow[A, R any](ctx context.Context, tc client.Client, opts client.StartWorkflowOptions, w wf[A, R], arg A) (workflowFuture[R], error) {
+// RunAsyncWorkflow executes a workflow asynchronously.
+func RunAsyncWorkflow[A, R any](ctx context.Context, tc client.Client, opts client.StartWorkflowOptions, w Workflow[A, R], arg A) (WorkflowFuture[R], error) {
 	var result R
 
 	run, err := tc.ExecuteWorkflow(ctx, opts, w, arg)
@@ -107,7 +114,8 @@ func RunAsyncWorkflow[A, R any](ctx context.Context, tc client.Client, opts clie
 	}, nil
 }
 
-func RunAsyncWorkflowNoResult[A any](ctx context.Context, tc client.Client, opts client.StartWorkflowOptions, w wfNoResult[A], arg A) (workflowFutureNoResult, error) {
+// RunAsyncWorkflowNoResult executes a workflow asynchronously without a result.
+func RunAsyncWorkflowNoResult[A any](ctx context.Context, tc client.Client, opts client.StartWorkflowOptions, w WorkflowNoResult[A], arg A) (WorkflowFutureNoResult, error) {
 	run, err := tc.ExecuteWorkflow(ctx, opts, w, arg)
 	if err != nil {
 		return func(ctx context.Context) error {
@@ -121,22 +129,25 @@ func RunAsyncWorkflowNoResult[A any](ctx context.Context, tc client.Client, opts
 	}, nil
 }
 
-func RunSyncChildWorkflow[A, R any](ctx workflow.Context, opts workflow.ChildWorkflowOptions, w wf[A, R], arg A) (result R, err error) {
+// RunSyncChildWorkflow executes a child workflow synchronously, blocking until the workflow execution ends and the result is returned.
+func RunSyncChildWorkflow[A, R any](ctx workflow.Context, opts workflow.ChildWorkflowOptions, w Workflow[A, R], arg A) (result R, err error) {
 	run := workflow.ExecuteChildWorkflow(ctx, opts, w, arg)
 	err = run.Get(ctx, &result)
 	return result, err
 }
 
-func RunSyncChildWorkflowNoResult[A any](ctx workflow.Context, opts workflow.ChildWorkflowOptions, w wfNoResult[A], arg A) (err error) {
+// RunSyncChildWorkflowNoResult executes a child workflow synchronously without a result, blocking until the workflow execution ends.
+func RunSyncChildWorkflowNoResult[A any](ctx workflow.Context, opts workflow.ChildWorkflowOptions, w WorkflowNoResult[A], arg A) (err error) {
 	run := workflow.ExecuteChildWorkflow(ctx, opts, w, arg)
 	err = run.Get(ctx, nil)
 	return err
 }
 
-type childWorkflowFuture[R any] func(ctx workflow.Context) (R, error)
-type childWorkflowFutureNoResult func(ctx workflow.Context) error
+type ChildWorkflowFuture[R any] func(ctx workflow.Context) (R, error)
+type ChildWorkflowFutureNoResult func(ctx workflow.Context) error
 
-func RunAsyncChildWorkflow[A, R any](ctx workflow.Context, opts workflow.ChildWorkflowOptions, w wf[A, R], arg A) childWorkflowFuture[R] {
+// RunAsyncChildWorkflow executes a child workflow asynchronously.
+func RunAsyncChildWorkflow[A, R any](ctx workflow.Context, opts workflow.ChildWorkflowOptions, w Workflow[A, R], arg A) ChildWorkflowFuture[R] {
 	run := workflow.ExecuteChildWorkflow(ctx, opts, w, arg)
 	return func(ctx workflow.Context) (R, error) {
 		var result R
@@ -145,7 +156,8 @@ func RunAsyncChildWorkflow[A, R any](ctx workflow.Context, opts workflow.ChildWo
 	}
 }
 
-func RunAsyncChildWorkflowNoResult[A any](ctx workflow.Context, opts workflow.ChildWorkflowOptions, w wfNoResult[A], arg A) childWorkflowFutureNoResult {
+// RunAsyncChildWorkflowNoResult executes a child workflow asynchronously without a result.
+func RunAsyncChildWorkflowNoResult[A any](ctx workflow.Context, opts workflow.ChildWorkflowOptions, w WorkflowNoResult[A], arg A) ChildWorkflowFutureNoResult {
 	run := workflow.ExecuteChildWorkflow(ctx, opts, w, arg)
 	return func(ctx workflow.Context) error {
 		err := run.Get(ctx, nil)
